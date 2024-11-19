@@ -81,7 +81,7 @@ fun BaseBottomSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x80000000)) // 반투명 배경 추가
+            .background(Color.Transparent) // 반투명 배경 추가
     ) {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
