@@ -1,8 +1,15 @@
 package com.blue.trendy_bottom_sheet
 
+import android.annotation.SuppressLint
+import android.icu.util.LocaleData
+import android.location.Address
+import android.location.Geocoder
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -46,11 +53,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.lifecycleScope
 import com.blue.trendy_bottom_sheet.ui.theme.Trendy_Bottom_SheetTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+    private lateinit var geocoder: Geocoder
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        geocoder = Geocoder(this, Locale.KOREAN)
+
         setContent {
             Trendy_Bottom_SheetTheme {
                 // A surface container using the 'background' color from the theme
@@ -59,7 +78,10 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(Color.LightGray),
                 ) {
-                    Greeting("Android")
+                    Greeting(
+                        "Android",
+                        geocoder
+                    )
 //                    AnimatedVisibilityWithCustomAnimation()
                 }
             }
@@ -67,8 +89,27 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@SuppressLint("CoroutineCreationDuringComposition")
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun Greeting(name: String, geocoder: Geocoder, modifier: Modifier = Modifier) {
+
+    val startTime = System.currentTimeMillis()
+    val list = mutableListOf<Address>()
+
+    val gap = CoroutineScope(Dispatchers.IO).async {
+        for(i in 1..100){
+            geocoder.getFromLocationName(
+                "경기도 김포시 고촌읍 고송로 7",
+                1,
+            ){
+                Log.e("TAG", "결과값 : $it", )
+                list.add(it[0])
+            }
+        }
+    }
+    Log.e("TAG", "list: $list", )
+
     var visible by remember { mutableStateOf(false) }
     if(visible){
         BaseBottomSheet(
@@ -82,7 +123,9 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 //        )
     }
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Button(
             onClick = { visible = !visible }
@@ -200,14 +243,13 @@ fun BaseBottomSheet(
         targetValue = if(alphaState) 1f else 0f,
         animationSpec = tween(
             durationMillis = 700,
-        ), label = ""
+        ),
+        label = "",
+        finishedListener = {if(!alphaState) onDismiss() }
     )
 
     ModalBottomSheet(
-        onDismissRequest = {
-            alphaState = false
-//            onDismiss()
-        },
+        onDismissRequest = onDismiss,
         sheetState = bottomSheetState,
         shape = RoundedCornerShape(20.dp),
         containerColor = Color.Transparent,
@@ -238,16 +280,17 @@ fun BaseBottomSheet(
 
                 Text("Test")
                 Spacer(modifier = Modifier.height(10.dp))
-                Text("TEST")
+                Button(onClick = {
+                    CoroutineScope(Dispatchers.IO).async {
+                        alphaState = false
+//                        onDismiss()
+                    }
+
+                }) {
+                    Text(text = "Push")
+                }
             }
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Trendy_Bottom_SheetTheme {
-        Greeting("Android")
-    }
-}
